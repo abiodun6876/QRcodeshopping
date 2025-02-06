@@ -26,7 +26,7 @@ def generate_qr(product_id):
     if product.empty:
         return "Product not found", 404
     
-    qr_url = f"http://localhost:5000/scan_product/{product_id}"
+    qr_url = f"https://q-rcodeshopping.vercel.app/scan_product/{product_id}"
     qr = qrcode.make(qr_url)
 
     img_io = BytesIO()
