@@ -15,15 +15,18 @@ scanned_items = []  # List to store scanned products
 
 # Load product database from CSV
 def load_products():
+    app.logger.info("Loading products from CSV file.")
     return pd.read_csv(CSV_FILE, dtype=str)
 
 # Generate QR Code for a product
 @app.route("/generate_qr/<product_id>")
 def generate_qr(product_id):
+    app.logger.info(f"Generating QR code for product ID: {product_id}")
     df = load_products()
     product = df[df["id"] == product_id]
     
     if product.empty:
+        app.logger.error(f"Product with ID {product_id} not found.")
         return "Product not found", 404
     
     qr_url = f"https://q-rcodeshopping.vercel.app/scan_product/{product_id}"
@@ -33,12 +36,14 @@ def generate_qr(product_id):
     qr.save(img_io, 'PNG')
     img_io.seek(0)
 
+    app.logger.info(f"QR code generated for product ID: {product_id}")
     return send_file(img_io, mimetype='image/png')
 
 # Scan Barcode/QR Code
 @app.route("/scan", methods=["POST"])
 def scan_barcode():
     global scanned_items
+    app.logger.info("Starting barcode scan.")
     file = request.files["file"]
     
     image = cv2.imdecode(np.frombuffer(file.read(), np.uint8), cv2.IMREAD_COLOR)
@@ -51,19 +56,23 @@ def scan_barcode():
 
         if not product.empty:
             scanned_items.append({"id": barcode_data, "name": product.iloc[0]["name"], "price": float(product.iloc[0]["price"])})
+            app.logger.info(f"Scanned product: {product.iloc[0]['name']}")
 
     total_price = sum(item["price"] for item in scanned_items)
+    app.logger.info(f"Total price of scanned items: {total_price}")
     return jsonify({"items": scanned_items, "total": total_price})
 
 # Print Receipt (HTML)
 @app.route("/receipt")
 def print_receipt():
     total_price = sum(item["price"] for item in scanned_items)
+    app.logger.info(f"Generating receipt with total price: {total_price}")
     return render_template("receipt.html", items=scanned_items, total=total_price)
 
 # Generate PDF Receipt
 @app.route("/receipt/pdf")
 def generate_pdf():
+    app.logger.info("Generating PDF receipt.")
     pdf_io = BytesIO()
     c = canvas.Canvas(pdf_io)
     c.drawString(100, 750, "Shopping Receipt")
@@ -76,6 +85,7 @@ def generate_pdf():
     c.save()
 
     pdf_io.seek(0)
+    app.logger.info("PDF receipt generated successfully.")
     return send_file(pdf_io, mimetype="application/pdf", as_attachment=True, download_name="receipt.pdf")
 
 # Clear Cart
@@ -83,7 +93,8 @@ def generate_pdf():
 def clear_cart():
     global scanned_items
     scanned_items = []
+    app.logger.info("Cart cleared.")
     return jsonify({"message": "Cart cleared"})
 
-if __name__ == "__main__":
-    app.run(debug=True)
+# Starting Flask application
+app.logger.info("Flask app starting.")
